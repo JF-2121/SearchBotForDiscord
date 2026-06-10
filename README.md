@@ -1,4 +1,4 @@
-# Discord bot that watches Vinted and Kleinanzeigen public search pages and returns matching listings instantly.
+# Discord bot that watches Vinted and Kleinanzeigen public search pages and returns matching listings instantly
 
 ## What it does
 
@@ -217,6 +217,3 @@ Test that the bot handles:
 - Vinted can change its HTML structure over time, which may require parser updates.
 - Keep your token private.
 - If you want auto-search in only one channel, set `DISCORD_DEDICATED_CHANNEL_ID`.
-=======
-# SearchBotForDiscord
->>>>>>> 63e2212122b24a61d3005e06e5985abd4d394c61
