@@ -17,8 +17,32 @@ import discord
 from discord.ext import commands
 
 from dotenv import load_dotenv
-load_dotenv()  # This loads the variables from your local .env file
+load_dotenv() 
 
+import http.server
+import threading
+
+class HealthCheckHandler(http.server.BaseHTTPRequestHandler):
+    def do_GET(self):
+        self.send_response(200)
+        self.send_header("Content-type", "text/plain")
+        self.end_headers()
+        self.wfile.write(b"Bot is alive!")
+    def log_message(self, format, *args):
+        return # Verhindert, dass UptimeRobot deine Logs zuspamt
+
+def run_health_server():
+    # Render übergibt automatisch den benötigten Port als Umgebungsvariable
+    port = int(os.getenv("PORT", 10000))
+    server = http.server.HTTPServer(("0.0.0.0", port), HealthCheckHandler)
+    server.serve_forever()
+
+# Startet den Server im Hintergrund, BEVOR der Discord-Bot blockiert
+threading.Thread(target=run_health_server, daemon=True).start()
+# -------------------------------------------
+
+# ... Hier drunter kommt dein ganz normaler DISCORD-BOT Code ...
+# Zum Beispiel: client.run(DISCORD_TOKEN)
 
 VINTED_MARKETPLACE = "Germany"
 VINTED_BASE_URL = "https://www.vinted.de/catalog"
@@ -34,11 +58,9 @@ MAX_RESULTS = 5
 RESULT_EMBED_COLOR = 0x6EB6FF
 SEARCH_TIMEOUT_SECONDS = 8
 
-# --- SECURE CONFIGURATION ---
-# Pull sensitive values safely from Render environment settings instead of hardcoding
+
 DISCORD_TOKEN = os.getenv("DISCORD_TOKEN")
 
-# ID numbers come in as strings from environment variables, so we convert them to integers safely
 _channel_id = os.getenv("DISCORD_DEDICATED_CHANNEL_ID")
 DISCORD_DEDICATED_CHANNEL_ID = int(_channel_id) if _channel_id else None
 
