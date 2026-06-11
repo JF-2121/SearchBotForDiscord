@@ -28,14 +28,23 @@ class HealthCheckHandler(http.server.BaseHTTPRequestHandler):
         self.send_header("Content-type", "text/plain")
         self.end_headers()
         self.wfile.write(b"Bot is alive!")
+        
+    def do_HEAD(self):
+        # Das fängt den UptimeRobot-Ping ab!
+        self.send_response(200)
+        self.send_header("Content-type", "text/plain")
+        self.end_headers()
+
     def log_message(self, format, *args):
-        return # Verhindert, dass UptimeRobot deine Logs zuspamt
+        return
+    
 
 def run_health_server():
     # Render übergibt automatisch den benötigten Port als Umgebungsvariable
     port = int(os.getenv("PORT", 10000))
     server = http.server.HTTPServer(("0.0.0.0", port), HealthCheckHandler)
     server.serve_forever()
+
 
 # Startet den Server im Hintergrund, BEVOR der Discord-Bot blockiert
 threading.Thread(target=run_health_server, daemon=True).start()
