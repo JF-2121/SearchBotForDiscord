@@ -67,6 +67,290 @@ MAX_RESULTS = 5
 RESULT_EMBED_COLOR = 0x6EB6FF
 SEARCH_TIMEOUT_SECONDS = 8
 
+SIZE_MAP = {
+    # Clothing sizes - Letter based
+    "xxs": ["xxs", "2xs", "extra extra small"],
+    "xs": ["xs", "extra small", "xsmall"],
+    "s": ["s", "small"],
+    "m": ["m", "medium", "med"],
+    "l": ["l", "large"],
+    "xl": ["xl", "extra large", "xlarge"],
+    "xxl": ["xxl", "2xl", "extra extra large"],
+    "xxxl": ["xxxl", "3xl"],
+    "4xl": ["4xl", "xxxxl"],
+    "5xl": ["5xl", "xxxxxl"],
+    
+    # US numeric sizes - Women's
+    "0": ["0", "00"],
+    "2": ["2"],
+    "4": ["4"],
+    "6": ["6"],
+    "8": ["8"],
+    "10": ["10"],
+    "12": ["12"],
+    "14": ["14"],
+    "16": ["16"],
+    "18": ["18"],
+    "20": ["20"],
+    
+    # EU sizes - Clothing
+    "32": ["32", "eu32"],
+    "34": ["34", "eu34"],
+    "36": ["36", "eu36"],
+    "38": ["38", "eu38"],
+    "40": ["40", "eu40"],
+    "42": ["42", "eu42"],
+    "44": ["44", "eu44"],
+    "46": ["46", "eu46"],
+    "48": ["48", "eu48"],
+    "50": ["50", "eu50"],
+    "52": ["52", "eu52"],
+    "54": ["54", "eu54"],
+    "56": ["56", "eu56"],
+    
+    # Shoe sizes - US Men's
+    "us6": ["us6", "us 6", "6us"],
+    "us7": ["us7", "us 7", "7us"],
+    "us8": ["us8", "us 8", "8us"],
+    "us9": ["us9", "us 9", "9us"],
+    "us10": ["us10", "us 10", "10us"],
+    "us11": ["us11", "us 11", "11us"],
+    "us12": ["us12", "us 12", "12us"],
+    "us13": ["us13", "us 13", "13us"],
+    "us14": ["us14", "us 14", "14us"],
+    
+    # Shoe sizes - EU
+    "eu36": ["eu36", "eu 36", "36eu"],
+    "eu37": ["eu37", "eu 37", "37eu"],
+    "eu38": ["eu38", "eu 38", "38eu"],
+    "eu39": ["eu39", "eu 39", "39eu"],
+    "eu40": ["eu40", "eu 40", "40eu"],
+    "eu41": ["eu41", "eu 41", "41eu"],
+    "eu42": ["eu42", "eu 42", "42eu"],
+    "eu43": ["eu43", "eu 43", "43eu"],
+    "eu44": ["eu44", "eu 44", "44eu"],
+    "eu45": ["eu45", "eu 45", "45eu"],
+    "eu46": ["eu46", "eu 46", "46eu"],
+    "eu47": ["eu47", "eu 47", "47eu"],
+    "eu48": ["eu48", "eu 48", "48eu"],
+    
+    # UK sizes
+    "uk6": ["uk6", "uk 6", "6uk"],
+    "uk7": ["uk7", "uk 7", "7uk"],
+    "uk8": ["uk8", "uk 8", "8uk"],
+    "uk9": ["uk9", "uk 9", "9uk"],
+    "uk10": ["uk10", "uk 10", "10uk"],
+    "uk11": ["uk11", "uk 11", "11uk"],
+    "uk12": ["uk12", "uk 12", "12uk"],
+    
+    # One size fits all
+    "onesize": ["one size", "onesize", "os", "one-size", "universal"],
+}
+
+BRAND_MAP = {
+    # Sportswear - Major
+    "nike": ["nike", "nke", "swoosh"],
+    "adidas": ["adidas", "adi", "3 stripes", "three stripes"],
+    "puma": ["puma"],
+    "reebok": ["reebok", "rbk"],
+    "new balance": ["new balance", "nb", "newbalance"],
+    "under armour": ["under armour", "underarmour", "ua"],
+    "asics": ["asics"],
+    "saucony": ["saucony"],
+    "brooks": ["brooks"],
+    "mizuno": ["mizuno"],
+    "fila": ["fila"],
+    "kappa": ["kappa"],
+    "umbro": ["umbro"],
+    "diadora": ["diadora"],
+    
+    # Streetwear - Sneakers
+    "jordan": ["jordan", "air jordan", "aj", "jumpman"],
+    "yeezy": ["yeezy", "yzzy", "ye"],
+    "vans": ["vans"],
+    "converse": ["converse", "chuck taylor", "all star"],
+    "dc": ["dc", "dc shoes"],
+    "etnies": ["etnies"],
+    "globe": ["globe"],
+    
+    # Luxury Sportswear
+    "balenciaga": ["balenciaga"],
+    "gucci": ["gucci", "gg"],
+    "louis vuitton": ["louis vuitton", "lv", "vuitton"],
+    "prada": ["prada"],
+    "dior": ["dior", "christian dior"],
+    "versace": ["versace"],
+    "givenchy": ["givenchy"],
+    "valentino": ["valentino"],
+    "saint laurent": ["saint laurent", "ysl", "yves saint laurent"],
+    "bottega veneta": ["bottega veneta", "bottega"],
+    "burberry": ["burberry"],
+    "fendi": ["fendi"],
+    "celine": ["celine"],
+    "loewe": ["loewe"],
+    "off white": ["off white", "off-white", "offwhite"],
+    "stone island": ["stone island", "stoneisland", "si"],
+    "moncler": ["moncler"],
+    "canada goose": ["canada goose", "canadagoose"],
+    
+    # Streetwear - Hype
+    "supreme": ["supreme", "sup", "bogo"],
+    "bape": ["bape", "a bathing ape", "bathing ape"],
+    "stussy": ["stussy", "stüssy"],
+    "palace": ["palace", "palace skateboards"],
+    "kith": ["kith"],
+    "anti social social club": ["anti social social club", "assc"],
+    "fear of god": ["fear of god", "fog", "essentials"],
+    "vlone": ["vlone"],
+    "revenge": ["revenge"],
+    
+    # Outdoor & Technical
+    "north face": ["north face", "northface", "tnf", "the north face"],
+    "patagonia": ["patagonia"],
+    "arc'teryx": ["arcteryx", "arc'teryx", "arc teryx"],
+    "columbia": ["columbia"],
+    "mammut": ["mammut"],
+    "salomon": ["salomon"],
+    "jack wolfskin": ["jack wolfskin", "jackwolfskin"],
+    "fjallraven": ["fjallraven", "fjällräven", "kanken"],
+    "helly hansen": ["helly hansen", "hh"],
+    
+    # Workwear
+    "carhartt": ["carhartt", "carhart", "carhartt wip"],
+    "dickies": ["dickies"],
+    "timberland": ["timberland", "timbs"],
+    "red wing": ["red wing", "redwing"],
+    "dr martens": ["dr martens", "doc martens", "docs", "drmartens"],
+    
+    # Denim & Casual
+    "levi": ["levi", "levis", "levi's", "levis"],
+    "wrangler": ["wrangler"],
+    "lee": ["lee"],
+    "diesel": ["diesel"],
+    "g-star": ["g-star", "gstar", "g star"],
+    "true religion": ["true religion", "truereligion"],
+    "7 for all mankind": ["7 for all mankind", "7fam"],
+    
+    # Designer Casual
+    "tommy hilfiger": ["tommy hilfiger", "tommy", "th", "hilfiger"],
+    "ralph lauren": ["ralph lauren", "polo", "rl", "polo ralph lauren"],
+    "lacoste": ["lacoste"],
+    "fred perry": ["fred perry", "fredperry"],
+    "hugo boss": ["hugo boss", "boss", "hugo"],
+    "armani": ["armani", "giorgio armani", "emporio armani"],
+    "calvin klein": ["calvin klein", "ck", "calvinklein"],
+    "michael kors": ["michael kors", "mk", "michaelkors"],
+    "guess": ["guess"],
+    
+    # Athletic Heritage
+    "champion": ["champion", "champ"],
+    "russell athletic": ["russell athletic", "russell"],
+    "starter": ["starter"],
+    "mitchell & ness": ["mitchell & ness", "mitchell and ness", "m&n"],
+    
+    # Skate
+    "thrasher": ["thrasher"],
+    "santa cruz": ["santa cruz", "santacruz"],
+    "element": ["element"],
+    "volcom": ["volcom"],
+    "quicksilver": ["quicksilver", "quiksilver"],
+    "billabong": ["billabong"],
+    "hurley": ["hurley"],
+    
+    # Japanese Brands
+    "uniqlo": ["uniqlo"],
+    "comme des garcons": ["comme des garcons", "cdg", "comme des garçons"],
+    "visvim": ["visvim"],
+    "neighborhood": ["neighborhood", "nbhd"],
+    "wtaps": ["wtaps"],
+    "undercover": ["undercover"],
+    "kapital": ["kapital"],
+    "human made": ["human made", "humanmade"],
+    
+    # Fast Fashion
+    "zara": ["zara"],
+    "h&m": ["h&m", "hm", "h and m"],
+    "forever 21": ["forever 21", "forever21"],
+    "pull&bear": ["pull&bear", "pull and bear", "pullandbear"],
+    "bershka": ["bershka"],
+    "mango": ["mango"],
+    "asos": ["asos"],
+    
+    # Accessories
+    "ray ban": ["ray ban", "rayban", "ray-ban"],
+    "oakley": ["oakley"],
+    "casio": ["casio", "g-shock", "gshock"],
+    "seiko": ["seiko"],
+    "fossil": ["fossil"],
+    "herschel": ["herschel"],
+    "jansport": ["jansport"],
+    "eastpak": ["eastpak"],
+    "the hundreds": ["the hundreds", "thehundreds"],
+}
+
+def expand_query(query: str) -> List[str]:
+    """
+    Normalize query using SIZE_MAP and BRAND_MAP, return list of query variations.
+    Expands sizes and brands to include common aliases for better search coverage.
+    """
+    if not query:
+        return [query]
+    
+    query_lower = query.lower().strip()
+    variations = [query]
+    
+    # Check for size expansions
+    for canonical_size, aliases in SIZE_MAP.items():
+        for alias in aliases:
+            if alias in query_lower:
+                # Create variations with different size formats
+                for other_alias in aliases:
+                    if other_alias != alias:
+                        variation = query_lower.replace(alias, other_alias)
+                        if variation not in [v.lower() for v in variations]:
+                            variations.append(variation)
+                break
+    
+    # Check for brand expansions
+    for canonical_brand, aliases in BRAND_MAP.items():
+        for alias in aliases:
+            # Use word boundaries to avoid partial matches
+            pattern = r'\b' + re.escape(alias) + r'\b'
+            if re.search(pattern, query_lower):
+                # Create variations with different brand formats
+                for other_alias in aliases:
+                    if other_alias != alias:
+                        variation = re.sub(pattern, other_alias, query_lower)
+                        if variation not in [v.lower() for v in variations]:
+                            variations.append(variation)
+                break
+    
+    # Limit to reasonable number of variations to avoid overwhelming the search
+    return variations[:5]
+
+
+def filter_and_sort(items: List[Listing]) -> List[Listing]:
+    """
+    Filter items to discard those older than 7 days, sort by price ascending, 
+    and return top 10 results.
+    """
+    from datetime import datetime, timedelta
+    
+    # Note: Vinted and Kleinanzeigen listings don't include timestamps in the current parsing
+    # This function is prepared for future enhancement when listing age data becomes available
+    # For now, we'll focus on price sorting and limiting to top 10
+    
+    cutoff_date = datetime.now() - timedelta(days=7)
+    
+    # Filter out items without prices (can't sort properly)
+    valid_items = [item for item in items if item.price is not None]
+    
+    # Sort by price ascending (cheapest first)
+    sorted_items = sorted(valid_items, key=lambda x: x.price)
+    
+    # Return top 10
+    return sorted_items[:10]
+
 
 DISCORD_TOKEN = os.getenv("DISCORD_TOKEN")
 
@@ -783,13 +1067,64 @@ async def on_ready() -> None:
 async def snipe(ctx: commands.Context, *, query: str) -> None:
     filters = parse_user_query(query)
     await acknowledge(ctx)
+    
+    # Expand query to include variations
+    query_variations = expand_query(filters.query)
+    
     try:
-        listings, errors = await search_all_sources(filters)
+        all_listings = []
+        errors = []
+        
+        # Search with each query variation
+        for variation in query_variations:
+            variation_filters = SearchFilters(
+                marketplace=filters.marketplace,
+                query=variation,
+                category=filters.category,
+                brand=filters.brand,
+                terms=filters.terms,
+                size=filters.size,
+                gender=filters.gender,
+                min_price=filters.min_price,
+                max_price=filters.max_price,
+                page=filters.page,
+                limit=filters.limit,
+            )
+            listings, search_errors = await search_all_sources(variation_filters)
+            all_listings.extend(listings)
+            errors.extend(search_errors)
+        
+        # Filter and sort results
+        filtered_listings = filter_and_sort(all_listings)
+        
     except RuntimeError as exc:
-        await ctx.send(f"Search failed: {exc}")
+        # Send ephemeral error to channel
+        if ctx.interaction:
+            await ctx.interaction.followup.send(f"Search failed: {exc}", ephemeral=True)
+        else:
+            await ctx.send(f"Search failed: {exc}")
         return
-
-    await send_result(ctx.send, filters, listings, errors)
+    
+    # Send results to user's DM
+    try:
+        await send_result(ctx.author.send, filters, filtered_listings, errors)
+        
+        # Send ephemeral confirmation to channel
+        if ctx.interaction:
+            await ctx.interaction.followup.send(
+                f"✅ Search results sent to your DMs! Found {len(filtered_listings)} listings.",
+                ephemeral=True
+            )
+        else:
+            await ctx.send(f"✅ {ctx.author.mention} Check your DMs for search results!")
+    except discord.Forbidden:
+        # User has DMs disabled, fall back to channel
+        await send_result(ctx.send, filters, filtered_listings, errors)
+        if ctx.interaction:
+            await ctx.interaction.followup.send(
+                "⚠️ Could not send DM. Please enable DMs from server members.",
+                ephemeral=True
+            )
 
 
 @bot.command(name="snipesample")
@@ -819,9 +1154,37 @@ async def on_message(message: discord.Message) -> None:
 
     if in_dedicated_channel and search_text:
         filters = parse_user_query(search_text)
+        
+        # Expand query to include variations
+        query_variations = expand_query(filters.query)
+        
         async with message.channel.typing():
             try:
-                listings, errors = await search_all_sources(filters)
+                all_listings = []
+                errors = []
+                
+                # Search with each query variation
+                for variation in query_variations:
+                    variation_filters = SearchFilters(
+                        marketplace=filters.marketplace,
+                        query=variation,
+                        category=filters.category,
+                        brand=filters.brand,
+                        terms=filters.terms,
+                        size=filters.size,
+                        gender=filters.gender,
+                        min_price=filters.min_price,
+                        max_price=filters.max_price,
+                        page=filters.page,
+                        limit=filters.limit,
+                    )
+                    listings, search_errors = await search_all_sources(variation_filters)
+                    all_listings.extend(listings)
+                    errors.extend(search_errors)
+                
+                # Filter and sort results
+                filtered_listings = filter_and_sort(all_listings)
+                
             except RuntimeError as exc:
                 await message.channel.send(
                     f"Search failed: {exc}",
@@ -832,7 +1195,7 @@ async def on_message(message: discord.Message) -> None:
                 await send_result(
                     message.channel.send,
                     filters,
-                    listings,
+                    filtered_listings,
                     errors,
                     reference=message.to_reference(fail_if_not_exists=False),
                 )
