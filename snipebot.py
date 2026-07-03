@@ -867,35 +867,53 @@ def build_kleinanzeigen_url(filters: SearchFilters) -> str:
 def parse_kleinanzeigen_listings(html_text: str) -> List[Listing]:
     listings: List[Listing] = []
     article_pattern = re.compile(
-        r'<article class="aditem" data-adid="(?P<id>\d+)"\s*data-href="(?P<href>[^"]+)">(?P<body>.*?)</article>',
+        r'<article[^>]*class="[^"]*aditem[^"]*"[^>]*data-adid="(?P<id>\d+)"[^>]*data-href="(?P<href>[^"]+)"[^>]*>(?P<body>.*?)</article>',
         re.IGNORECASE | re.DOTALL,
     )
 
     for match in article_pattern.finditer(html_text):
         body = match.group("body")
-        title_match = re.search(r'<a class="ellipsis"[^>]*>(?P<title>.*?)</a>', body, re.IGNORECASE | re.DOTALL)
+        
+        # Skip sponsored ads
+        if 'aditem-addon' in body or 'sponsored' in body.lower():
+            continue
+        
+        # Extract title - try multiple selectors
+        title_match = re.search(r'<a[^>]*class="[^"]*ellipsis[^"]*"[^>]*>(?P<title>.*?)</a>', body, re.IGNORECASE | re.DOTALL)
+        if not title_match:
+            title_match = re.search(r'<h2[^>]*>.*?<a[^>]*>(?P<title>.*?)</a>', body, re.IGNORECASE | re.DOTALL)
         if not title_match:
             continue
 
         title = _shorten_text(title_match.group("title"), 100)
+        
+        # Extract description
         desc_match = re.search(
-            r'<p class="aditem-main--middle--description">(.*?)</p>',
+            r'<p[^>]*class="[^"]*aditem-main--middle--description[^"]*"[^>]*>(.*?)</p>',
             body,
             re.IGNORECASE | re.DOTALL,
         )
         description = _shorten_text(desc_match.group(1), 120) if desc_match else title
+        
+        # Extract price - robust selector
         price_match = re.search(
-            r'<p class="aditem-main--middle--price-shipping--price">\s*([^<]+?)\s*</p>',
+            r'<p[^>]*class="[^"]*aditem-main--middle--price-shipping--price[^"]*"[^>]*>\s*([^<]+?)\s*</p>',
             body,
             re.IGNORECASE | re.DOTALL,
         )
+        if not price_match:
+            price_match = re.search(r'(\d+(?:[.,]\d+)?)\s*€', body, re.IGNORECASE)
+        
         price = _parse_price_text(price_match.group(1).replace("€", "")) if price_match else None
+        
+        # Extract image
         image_match = re.search(r'<img[^>]+src="([^"]+)"', body, re.IGNORECASE)
+        
+        # Build URL
         url = urllib.parse.urljoin(KLEINANZEIGEN_BASE_URL, match.group("href"))
 
-        # Extract metadata for deal-score
+        # Extract metadata
         likes = 0
-        # Kleinanzeigen doesn't typically show likes on listing cards
         
         condition = None
         condition_match = re.search(r'(?:Zustand|Condition)[:\s]*([^<]+)', body, re.IGNORECASE)
@@ -1004,16 +1022,27 @@ async def search_vinted(filters: SearchFilters) -> List[Listing]:
 async def search_kleinanzeigen(filters: SearchFilters) -> List[Listing]:
     session = await get_http_session()
     url = build_kleinanzeigen_url(filters)
-    headers = {"User-Agent": USER_AGENT, "Accept-Language": "de-DE,de;q=0.9,en;q=0.7"}
+    headers = {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
+        "Accept-Language": "de-DE,de;q=0.9,en-US;q=0.8,en;q=0.7",
+        "Accept-Encoding": "gzip, deflate, br",
+        "DNT": "1",
+        "Connection": "keep-alive",
+        "Upgrade-Insecure-Requests": "1",
+        "Sec-Fetch-Dest": "document",
+        "Sec-Fetch-Mode": "navigate",
+        "Sec-Fetch-Site": "none",
+        "Cache-Control": "max-age=0"
+    }
     
     try:
         async with asyncio.timeout(2.5):
-            async with session.get(url, headers=headers) as response:
+            async with session.get(url, headers=headers, allow_redirects=True) as response:
                 html_text = await response.text()
                 listings = parse_kleinanzeigen_listings(html_text)
                 return apply_post_filters(listings, filters)
     except (asyncio.TimeoutError, Exception):
-        # Fast fallback: return empty on timeout/error
         return []
 
 
