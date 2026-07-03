@@ -1,6 +1,0 @@
-{"id":"bd0c310b-e7d8-4010-b0dd-3958cc3f91c2","ts":"2026-07-03T17:22:59.198Z","path":"/Users/hacinjosh01/Desktop/Desktop/SearchBotForDiscord/snipebot.py","version":"1.0.0","taskID":"bf5b66f7-adfc-49a9-9c32-1bde44f2fc8b"}
-{"id":"72cc5198-09e0-4d0c-a9c2-fdb8230ae0ee","ts":"2026-07-03T17:22:59.199Z","path":"/Users/hacinjosh01/Desktop/Desktop/SearchBotForDiscord/snipebot.py","version":"1.0.0","taskID":"bf5b66f7-adfc-49a9-9c32-1bde44f2fc8b"}
-{"id":"6b0cb42c-aca0-47b6-ab0c-82bbcc33d3f5","ts":"2026-07-03T17:23:13.811Z","path":"/Users/hacinjosh01/Desktop/Desktop/SearchBotForDiscord/snipebot.py","version":"1.0.0","taskID":"bf5b66f7-adfc-49a9-9c32-1bde44f2fc8b"}
-{"id":"3a5ea488-27dc-4ab5-8886-6521484df032","ts":"2026-07-03T17:23:26.576Z","path":"/Users/hacinjosh01/Desktop/Desktop/SearchBotForDiscord/snipebot.py","version":"1.0.0","taskID":"bf5b66f7-adfc-49a9-9c32-1bde44f2fc8b"}
-{"id":"fa88a40e-6788-4bb7-8ebd-fe26617ae40c","ts":"2026-07-03T17:23:57.237Z","path":"/Users/hacinjosh01/Desktop/Desktop/SearchBotForDiscord/snipebot.py","version":"1.0.0","taskID":"bf5b66f7-adfc-49a9-9c32-1bde44f2fc8b"}
-{"id":"08c70fcf-b8d8-4119-84df-0a21ad36d4fa","ts":"2026-07-03T17:24:10.640Z","path":"/Users/hacinjosh01/Desktop/Desktop/SearchBotForDiscord/snipebot.py","version":"1.0.0","taskID":"bf5b66f7-adfc-49a9-9c32-1bde44f2fc8b"}
