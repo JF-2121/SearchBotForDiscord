@@ -329,27 +329,72 @@ def expand_query(query: str) -> List[str]:
     return variations[:5]
 
 
+def calculate_deal_score(item: Listing) -> float:
+    """
+    Calculate composite deal-score for a listing.
+    Higher score = better deal.
+    """
+    if item.price is None or item.price <= 0:
+        return 0.0
+    
+    # Base score: cheaper items get exponentially higher scores
+    score = 1000.0 / item.price
+    
+    # Condition bonus
+    if item.condition:
+        condition_lower = item.condition.lower()
+        if any(term in condition_lower for term in ["neu", "new with tags", "nwt", "brandneu"]):
+            score += 30
+        elif any(term in condition_lower for term in ["sehr gut", "very good", "excellent", "wie neu"]):
+            score += 15
+    
+    # Hype/Trust bonus: likes (capped at +20)
+    if item.likes > 0:
+        score += min(item.likes, 20)
+    
+    # Top-rated seller badge bonus
+    if item.seller_badge:
+        score += 25
+    
+    # Freshness bonus: listed < 24h ago
+    if item.listed_hours_ago is not None and item.listed_hours_ago < 24:
+        score += 20
+    
+    return score
+
+
 def filter_and_sort(items: List[Listing]) -> List[Listing]:
     """
-    Filter items to discard those older than 7 days, sort by price ascending, 
-    and return top 10 results.
+    Filter items, calculate deal-scores, sort by score DESC, and return top 10 best deals.
+    Aims for balanced 50/50 Vinted/Kleinanzeigen representation.
     """
-    from datetime import datetime, timedelta
+    # Filter out items without prices
+    valid_items = [item for item in items if item.price is not None and item.price > 0]
     
-    # Note: Vinted and Kleinanzeigen listings don't include timestamps in the current parsing
-    # This function is prepared for future enhancement when listing age data becomes available
-    # For now, we'll focus on price sorting and limiting to top 10
+    # Calculate deal-score for each item
+    scored_items = [(item, calculate_deal_score(item)) for item in valid_items]
     
-    cutoff_date = datetime.now() - timedelta(days=7)
+    # Sort by deal-score descending (best deals first)
+    scored_items.sort(key=lambda x: x[1], reverse=True)
     
-    # Filter out items without prices (can't sort properly)
-    valid_items = [item for item in items if item.price is not None]
+    # Extract items and aim for balanced source representation
+    vinted_items = [item for item, score in scored_items if item.source == "Vinted"]
+    kleinanzeigen_items = [item for item, score in scored_items if item.source == "Kleinanzeigen"]
     
-    # Sort by price ascending (cheapest first)
-    sorted_items = sorted(valid_items, key=lambda x: x.price)
+    # Merge with 50/50 balance preference
+    result = []
+    v_idx = k_idx = 0
     
-    # Return top 10
-    return sorted_items[:10]
+    while len(result) < 10 and (v_idx < len(vinted_items) or k_idx < len(kleinanzeigen_items)):
+        # Alternate between sources when both available
+        if v_idx < len(vinted_items) and (len(result) % 2 == 0 or k_idx >= len(kleinanzeigen_items)):
+            result.append(vinted_items[v_idx])
+            v_idx += 1
+        elif k_idx < len(kleinanzeigen_items):
+            result.append(kleinanzeigen_items[k_idx])
+            k_idx += 1
+    
+    return result[:10]
 
 
 DISCORD_TOKEN = os.getenv("DISCORD_TOKEN")
@@ -412,6 +457,10 @@ class Listing:
     url: str
     price: Optional[float] = None
     image_url: Optional[str] = None
+    likes: int = 0
+    condition: Optional[str] = None
+    seller_badge: Optional[str] = None
+    listed_hours_ago: Optional[float] = None
 
 
 def _normalize_token(token: str) -> str:
@@ -748,6 +797,29 @@ def parse_listings(html_text: str) -> List[Listing]:
             window,
             re.IGNORECASE,
         )
+        
+        # Extract metadata for deal-score
+        likes = 0
+        likes_match = re.search(rf'data-testid="product-item-id-{listing_id}--favorite-count"[^>]*>(\d+)', window, re.IGNORECASE)
+        if likes_match:
+            likes = int(likes_match.group(1))
+        
+        condition = None
+        condition_match = re.search(r'(?:Zustand|Condition)[:\s]*([^<]+)', window, re.IGNORECASE)
+        if condition_match:
+            condition = condition_match.group(1).strip()
+        
+        seller_badge = None
+        if re.search(r'(?:top.?rated|verified|pro)', window, re.IGNORECASE):
+            seller_badge = "verified"
+        
+        listed_hours_ago = None
+        time_match = re.search(r'(\d+)\s*(?:hour|stunde|hr|h)\s*ago', window, re.IGNORECASE)
+        if time_match:
+            listed_hours_ago = float(time_match.group(1))
+        elif re.search(r'(?:today|heute|just now|gerade)', window, re.IGNORECASE):
+            listed_hours_ago = 0.5
+        
         description = _shorten_text(title)
         listings.append(
             Listing(
@@ -758,6 +830,10 @@ def parse_listings(html_text: str) -> List[Listing]:
                 url=url,
                 price=_extract_first_price(title),
                 image_url=html.unescape(image_match.group(1)) if image_match else None,
+                likes=likes,
+                condition=condition,
+                seller_badge=seller_badge,
+                listed_hours_ago=listed_hours_ago,
             )
         )
         seen_ids.add(listing_id)
@@ -807,6 +883,26 @@ def parse_kleinanzeigen_listings(html_text: str) -> List[Listing]:
         image_match = re.search(r'<img[^>]+src="([^"]+)"', body, re.IGNORECASE)
         url = urllib.parse.urljoin(KLEINANZEIGEN_BASE_URL, match.group("href"))
 
+        # Extract metadata for deal-score
+        likes = 0
+        # Kleinanzeigen doesn't typically show likes on listing cards
+        
+        condition = None
+        condition_match = re.search(r'(?:Zustand|Condition)[:\s]*([^<]+)', body, re.IGNORECASE)
+        if condition_match:
+            condition = condition_match.group(1).strip()
+        
+        seller_badge = None
+        if re.search(r'(?:gewerblich|commercial|pro|verified)', body, re.IGNORECASE):
+            seller_badge = "verified"
+        
+        listed_hours_ago = None
+        time_match = re.search(r'(\d+)\s*(?:hour|stunde|hr|h)', body, re.IGNORECASE)
+        if time_match:
+            listed_hours_ago = float(time_match.group(1))
+        elif re.search(r'(?:heute|today|gerade|just now)', body, re.IGNORECASE):
+            listed_hours_ago = 0.5
+
         listings.append(
             Listing(
                 source="Kleinanzeigen",
@@ -816,6 +912,10 @@ def parse_kleinanzeigen_listings(html_text: str) -> List[Listing]:
                 url=url,
                 price=price,
                 image_url=html.unescape(image_match.group(1)) if image_match else None,
+                likes=likes,
+                condition=condition,
+                seller_badge=seller_badge,
+                listed_hours_ago=listed_hours_ago,
             )
         )
 
@@ -915,6 +1015,10 @@ async def search_kleinanzeigen(filters: SearchFilters) -> List[Listing]:
 
 
 async def search_all_sources(filters: SearchFilters) -> tuple[List[Listing], List[str]]:
+    """
+    Execute parallel requests to both vinted.de and kleinanzeigen.de via asyncio.gather.
+    Returns combined results from both sources with error tracking.
+    """
     tasks = [
         asyncio.wait_for(search_vinted(filters), timeout=SEARCH_TIMEOUT_SECONDS),
         asyncio.wait_for(search_kleinanzeigen(filters), timeout=SEARCH_TIMEOUT_SECONDS),
@@ -924,31 +1028,21 @@ async def search_all_sources(filters: SearchFilters) -> tuple[List[Listing], Lis
     vinted_results: List[Listing] = []
     kleinanzeigen_results: List[Listing] = []
     errors: List[str] = []
+    
     for source_name, result in zip(["Vinted", "Kleinanzeigen"], results):
         if isinstance(result, Exception):
             errors.append(f"{source_name}: {result}")
             continue
-        sorted_result = sorted(_dedupe_listings(result), key=_listing_sort_key)
+        # Dedupe results from each source
+        deduped = _dedupe_listings(result)
         if source_name == "Vinted":
-            vinted_results = sorted_result
+            vinted_results = deduped
         else:
-            kleinanzeigen_results = sorted_result
+            kleinanzeigen_results = deduped
 
-    combined = _merge_balanced(vinted_results, kleinanzeigen_results, filters.limit)
-    if len(combined) < filters.limit:
-        seen_urls = {listing.url.lower().rstrip("/") for listing in combined}
-        for source_results in (vinted_results, kleinanzeigen_results):
-            for listing in source_results:
-                key = listing.url.lower().rstrip("/")
-                if key in seen_urls:
-                    continue
-                combined.append(listing)
-                seen_urls.add(key)
-                if len(combined) >= filters.limit:
-                    break
-            if len(combined) >= filters.limit:
-                break
-
+    # Combine all results from both sources (no pre-sorting, let filter_and_sort handle it)
+    combined = vinted_results + kleinanzeigen_results
+    
     return combined, errors
 
 
