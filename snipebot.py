@@ -525,6 +525,8 @@ def _extract_price_range(raw_query: str) -> tuple[str, Optional[float], Optional
 
 
 def parse_user_query(raw_query: str) -> SearchFilters:
+    # Strip Discord mentions before processing
+    raw_query = re.sub(r'<@!?\d+>', '', raw_query).strip()
     raw_query, range_min, range_max = _extract_price_range(raw_query)
     tokens = raw_query.replace(",", " ").split()
     query_terms: List[str] = []
@@ -1145,62 +1147,82 @@ async def on_message(message: discord.Message) -> None:
 
     bot_user_id = bot.user.id if bot.user else None
     in_dedicated_channel = DISCORD_DEDICATED_CHANNEL_ID and message.channel.id == DISCORD_DEDICATED_CHANNEL_ID
-    has_bot_mention = bot_user_id is not None and (
-        any(user.id == bot_user_id for user in message.mentions)
-        or f"<@!{bot_user_id}>" in message.content
-        or f"<@{bot_user_id}>" in message.content
-    )
-    search_text = extract_search_text(message.content, bot_user_id)
-
-    if in_dedicated_channel and search_text:
+    
+    # Auto-search in dedicated channel without requiring mention or prefix
+    if in_dedicated_channel:
+        # Strip mentions from content
+        search_text = re.sub(r'<@!?\d+>', '', message.content).strip()
+        
+        if not search_text:
+            return
+        
+        # React with search emoji to confirm receipt
+        try:
+            await message.add_reaction("🔍")
+        except discord.Forbidden:
+            pass
+        
         filters = parse_user_query(search_text)
         
         # Expand query to include variations
         query_variations = expand_query(filters.query)
         
-        async with message.channel.typing():
+        try:
+            all_listings = []
+            errors = []
+            
+            # Search with each query variation
+            for variation in query_variations:
+                variation_filters = SearchFilters(
+                    marketplace=filters.marketplace,
+                    query=variation,
+                    category=filters.category,
+                    brand=filters.brand,
+                    terms=filters.terms,
+                    size=filters.size,
+                    gender=filters.gender,
+                    min_price=filters.min_price,
+                    max_price=filters.max_price,
+                    page=filters.page,
+                    limit=filters.limit,
+                )
+                listings, search_errors = await search_all_sources(variation_filters)
+                all_listings.extend(listings)
+                errors.extend(search_errors)
+            
+            # Filter and sort results
+            filtered_listings = filter_and_sort(all_listings)
+            
+            # Send ALL results to user's DM only
             try:
-                all_listings = []
-                errors = []
-                
-                # Search with each query variation
-                for variation in query_variations:
-                    variation_filters = SearchFilters(
-                        marketplace=filters.marketplace,
-                        query=variation,
-                        category=filters.category,
-                        brand=filters.brand,
-                        terms=filters.terms,
-                        size=filters.size,
-                        gender=filters.gender,
-                        min_price=filters.min_price,
-                        max_price=filters.max_price,
-                        page=filters.page,
-                        limit=filters.limit,
-                    )
-                    listings, search_errors = await search_all_sources(variation_filters)
-                    all_listings.extend(listings)
-                    errors.extend(search_errors)
-                
-                # Filter and sort results
-                filtered_listings = filter_and_sort(all_listings)
-                
-            except RuntimeError as exc:
+                await send_result(message.author.send, filters, filtered_listings, errors)
+            except discord.Forbidden:
+                # User has DMs disabled, notify in channel
                 await message.channel.send(
-                    f"Search failed: {exc}",
+                    f"{message.author.mention} I couldn't send you a DM. Please enable DMs from server members.",
                     reference=message.to_reference(fail_if_not_exists=False),
                     mention_author=False,
                 )
-            else:
-                await send_result(
-                    message.channel.send,
-                    filters,
-                    filtered_listings,
-                    errors,
+                
+        except RuntimeError as exc:
+            # Send error to DM
+            try:
+                await message.author.send(f"Search failed: {exc}")
+            except discord.Forbidden:
+                await message.channel.send(
+                    f"{message.author.mention} Search failed: {exc}",
                     reference=message.to_reference(fail_if_not_exists=False),
+                    mention_author=False,
                 )
         return
 
+    # Check for bot mention in non-dedicated channels
+    has_bot_mention = bot_user_id is not None and (
+        any(user.id == bot_user_id for user in message.mentions)
+        or f"<@!{bot_user_id}>" in message.content
+        or f"<@{bot_user_id}>" in message.content
+    )
+    
     if has_bot_mention:
         return
 
