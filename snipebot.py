@@ -13,11 +13,24 @@ import urllib.request
 from dataclasses import dataclass
 from typing import Awaitable, Callable, Iterable, List, Optional, Sequence
 
+import aiohttp
 import discord
 from discord.ext import commands
 
 from dotenv import load_dotenv
-load_dotenv() 
+load_dotenv()
+
+# Shared aiohttp session for connection pooling
+_http_session: Optional[aiohttp.ClientSession] = None
+
+async def get_http_session() -> aiohttp.ClientSession:
+    global _http_session
+    if _http_session is None or _http_session.closed:
+        _http_session = aiohttp.ClientSession(
+            timeout=aiohttp.ClientTimeout(total=2.5),
+            connector=aiohttp.TCPConnector(limit=100, limit_per_host=30)
+        )
+    return _http_session
 
 import http.server
 import threading
@@ -363,38 +376,35 @@ def calculate_deal_score(item: Listing) -> float:
     return score
 
 
-def filter_and_sort(items: List[Listing]) -> List[Listing]:
+def filter_and_sort(items: List[Listing], limit: int = 10) -> List[Listing]:
     """
-    Filter items, calculate deal-scores, sort by score DESC, and return top 10 best deals.
-    Aims for balanced 50/50 Vinted/Kleinanzeigen representation.
+    Group by source, sort each DESC by deal_score, take top 5 from each.
+    Backfill deficit from other source. Return combined sorted DESC.
     """
-    # Filter out items without prices
     valid_items = [item for item in items if item.price is not None and item.price > 0]
     
-    # Calculate deal-score for each item
-    scored_items = [(item, calculate_deal_score(item)) for item in valid_items]
+    vinted = [(item, calculate_deal_score(item)) for item in valid_items if item.source == "Vinted"]
+    kleinanzeigen = [(item, calculate_deal_score(item)) for item in valid_items if item.source == "Kleinanzeigen"]
     
-    # Sort by deal-score descending (best deals first)
-    scored_items.sort(key=lambda x: x[1], reverse=True)
+    vinted.sort(key=lambda x: x[1], reverse=True)
+    kleinanzeigen.sort(key=lambda x: x[1], reverse=True)
     
-    # Extract items and aim for balanced source representation
-    vinted_items = [item for item, score in scored_items if item.source == "Vinted"]
-    kleinanzeigen_items = [item for item, score in scored_items if item.source == "Kleinanzeigen"]
+    v_top = [item for item, score in vinted[:5]]
+    k_top = [item for item, score in kleinanzeigen[:5]]
     
-    # Merge with 50/50 balance preference
-    result = []
-    v_idx = k_idx = 0
+    combined = v_top + k_top
     
-    while len(result) < 10 and (v_idx < len(vinted_items) or k_idx < len(kleinanzeigen_items)):
-        # Alternate between sources when both available
-        if v_idx < len(vinted_items) and (len(result) % 2 == 0 or k_idx >= len(kleinanzeigen_items)):
-            result.append(vinted_items[v_idx])
-            v_idx += 1
-        elif k_idx < len(kleinanzeigen_items):
-            result.append(kleinanzeigen_items[k_idx])
-            k_idx += 1
+    if len(combined) < limit:
+        deficit = limit - len(combined)
+        v_remaining = [item for item, score in vinted[5:]]
+        k_remaining = [item for item, score in kleinanzeigen[5:]]
+        backfill = (v_remaining + k_remaining)[:deficit]
+        combined.extend(backfill)
     
-    return result[:10]
+    combined_scored = [(item, calculate_deal_score(item)) for item in combined]
+    combined_scored.sort(key=lambda x: x[1], reverse=True)
+    
+    return [item for item, score in combined_scored[:limit]]
 
 
 DISCORD_TOKEN = os.getenv("DISCORD_TOKEN")
@@ -975,43 +985,36 @@ def apply_post_filters(listings: Iterable[Listing], filters: SearchFilters) -> L
     return results
 
 
-def fetch_catalog_page(filters: SearchFilters) -> str:
-    url = build_catalog_url(filters)
-    request = urllib.request.Request(
-        url,
-        headers={
-            "User-Agent": USER_AGENT,
-            "Accept-Language": "en-US,en;q=0.9",
-        },
-    )
-
-    try:
-        with urllib.request.urlopen(request, timeout=20) as response:
-            payload = response.read()
-    except (urllib.error.HTTPError, urllib.error.URLError, TimeoutError) as exc:
-        raise RuntimeError(f"Vinted request failed: {exc}") from exc
-
-    return payload.decode("utf-8", errors="replace")
-
-
 async def search_vinted(filters: SearchFilters) -> List[Listing]:
-    html_text = await asyncio.to_thread(fetch_catalog_page, filters)
-    listings = parse_listings(html_text)
-    return apply_post_filters(listings, filters)
+    session = await get_http_session()
+    url = build_catalog_url(filters)
+    headers = {"User-Agent": USER_AGENT, "Accept-Language": "en-US,en;q=0.9"}
+    
+    try:
+        async with asyncio.timeout(2.5):
+            async with session.get(url, headers=headers) as response:
+                html_text = await response.text()
+                listings = parse_listings(html_text)
+                return apply_post_filters(listings, filters)
+    except (asyncio.TimeoutError, Exception):
+        # Fast fallback: return empty on timeout/error
+        return []
 
 
 async def search_kleinanzeigen(filters: SearchFilters) -> List[Listing]:
-    def fetch_page() -> str:
-        request = urllib.request.Request(
-            build_kleinanzeigen_url(filters),
-            headers={"User-Agent": USER_AGENT, "Accept-Language": "de-DE,de;q=0.9,en;q=0.7"},
-        )
-        with urllib.request.urlopen(request, timeout=SEARCH_TIMEOUT_SECONDS) as response:
-            return response.read().decode("utf-8", errors="replace")
-
-    html_text = await asyncio.to_thread(fetch_page)
-    listings = parse_kleinanzeigen_listings(html_text)
-    return apply_post_filters(listings, filters)
+    session = await get_http_session()
+    url = build_kleinanzeigen_url(filters)
+    headers = {"User-Agent": USER_AGENT, "Accept-Language": "de-DE,de;q=0.9,en;q=0.7"}
+    
+    try:
+        async with asyncio.timeout(2.5):
+            async with session.get(url, headers=headers) as response:
+                html_text = await response.text()
+                listings = parse_kleinanzeigen_listings(html_text)
+                return apply_post_filters(listings, filters)
+    except (asyncio.TimeoutError, Exception):
+        # Fast fallback: return empty on timeout/error
+        return []
 
 
 async def search_all_sources(filters: SearchFilters) -> tuple[List[Listing], List[str]]:
@@ -1323,11 +1326,20 @@ async def on_message(message: discord.Message) -> None:
     await bot.process_commands(message)
 
 
+async def cleanup_session():
+    global _http_session
+    if _http_session and not _http_session.closed:
+        await _http_session.close()
+
+
 def main() -> None:
     token = DISCORD_TOKEN.strip()
     if not token:
         raise SystemExit("Set DISCORD_TOKEN in snipebot.py before starting the bot.")
-    bot.run(token)
+    try:
+        bot.run(token)
+    finally:
+        asyncio.run(cleanup_session())
 
 
 if __name__ == "__main__":
